@@ -19,12 +19,14 @@ fn main() -> std::io::Result<()>{
         process::exit(1);
     }
 
-    let str_address = &args[1];
+    let tx = &args[1];
 
-    let address: SocketAddr = str_address.parse().unwrap_or_else(|error| {
+    let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(23, 239, 26, 175)), 18333);
+
+    /*let address: SocketAddr = str_address.parse().unwrap_or_else(|error| {
         eprintln!("Error parsing address: {:?}", error);
         process::exit(1);
-    });
+    });*/
 
     let version_message = build_version_message(address);
 
@@ -34,7 +36,7 @@ fn main() -> std::io::Result<()>{
     };    
 
     //create tx inv message
-    let txhex: Transaction = deserialize(&Vec::from_hex("020000000001012125bdeec17f5c6446a334df9fe2e5aeec13c496d3979a50620d3c07054a94510000000000feffffff02905f0100000000001976a914344a0f48ca150ec2b903817660b9b68b13a6702688ac6526000000000000160014acaecb6062c078f9f4c272df0349330a9398787102473044022042b1e9acb3f07e514625cb50033b3075bbe82ef99d4a3590bc25dc65541dd1820220364c3cc9c0dbd50db7b540e2f21e6267ebbdb03bc3f7c6708e35989e08c09e1b012102469e82060d46d012506786a8069ac461710cc97ff9f5bc6f7472bb252a1c685036842100").unwrap()).unwrap();
+    let txhex: Transaction = deserialize(&Vec::from_hex(&tx).unwrap()).unwrap();
     let txid = Inventory::Transaction(txhex.txid());
     let mut txvec = Vec::new();
     txvec.push(txid);
