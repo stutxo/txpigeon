@@ -1,4 +1,4 @@
-use std::net::{IpAddr, Ipv4Addr, Shutdown, SocketAddr, TcpStream};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{env, process};
 use std::io::{Write, BufReader};
@@ -10,7 +10,7 @@ use bitcoin::hashes::hex::FromHex;
 use bitcoin::network::{address, constants, message, message_network};
 
 
-fn main() {
+fn main() -> std::io::Result<()>{
     // This example establishes a connection to a Bitcoin node, sends the intial
     // "version" message, waits for the reply, and finally closes the connection.
     let args: Vec<String> = env::args().collect();
@@ -43,6 +43,15 @@ fn main() {
         magic: constants::Network::Testnet.magic(),
         payload: message::NetworkMessage::Inv(txvec),
     };
+
+    
+    
+    //create tx send message
+    let tx_message = message::RawNetworkMessage {
+        magic: constants::Network::Testnet.magic(),
+        payload: message::NetworkMessage::Tx(txhex),
+    };
+
     
     
     if let Ok(mut stream) = TcpStream::connect(address) {
@@ -75,15 +84,30 @@ fn main() {
                     println!("Sent inv message {:?}", &inv_message);
                     
                 }
+                message::NetworkMessage::GetData(_) => {
+                    println!("Received GetData message: {:?}", reply.payload);            
+                   
+                    let txidreply = txid;
+                    let mut txvecreply = Vec::new();
+                    txvecreply.push(txidreply);
+
+                    if reply.payload == message::NetworkMessage::GetData(txvecreply) {
+                        stream.write_all(encode::serialize(&tx_message).as_slice())?;
+                        println!("broadcast TX {:?}", &tx_message);
+                    } 
+                    
+                    
+                }
                 _ => {
                     println!("Received unknown message: {:?}", reply.payload);
-                    break
+                    
                 }
             }
         }
-        let _ = stream.shutdown(Shutdown::Both);
+        
     } else {
         eprintln!("Failed to open connection");
+        process::exit(1);
     }
 }
 
