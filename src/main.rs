@@ -94,10 +94,20 @@ fn main() -> std::io::Result<()>{
                     if reply.payload == message::NetworkMessage::GetData(txvecreply) {
                         stream.write_all(encode::serialize(&tx_message).as_slice())?;
                         println!("broadcast TX {:?}", &tx_message);
-                    } 
-                    
-                    
-                }
+                    }
+                } 
+                message::NetworkMessage::Ping(nonce) => {
+                    println!("Received ping message: {:?}", reply.payload);
+
+                    let pong_message = message::RawNetworkMessage {
+                        magic: constants::Network::Testnet.magic(),
+                        payload: message::NetworkMessage::Pong(nonce),
+                    };
+
+                    let _ = stream.write_all(encode::serialize(&pong_message).as_slice());
+                    println!("Sent pong message {:?}", &pong_message);
+
+                } 
                 _ => {
                     println!("Received unknown message: {:?}", reply.payload);
                     
