@@ -8,9 +8,11 @@ use bitcoin::{Transaction};
 use bitcoin::consensus::{encode, Decodable, deserialize};
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::network::{address, message, constants, message_network};
+use rand::prelude::SliceRandom;
+use crate::dns::dns_seed;
 
 
-pub fn egg(address:SocketAddr, tx: &String) -> std::io::Result<()>{
+pub fn sendtx(address:SocketAddr, tx: &String) -> std::io::Result<()> {
         
     if let Ok (mut stream) = TcpStream::connect(address) {
 
@@ -36,15 +38,16 @@ let tx_message = message::RawNetworkMessage {
     payload: message::NetworkMessage::Tx(txhex),
 };
     let _first  = stream.write_all(encode::serialize(&first_message).as_slice());
-    println!("Sent version message");
+    println!("Sent version message to {:?}", address);
             
     let read_stream = stream.try_clone().unwrap();
     let mut stream_reader = BufReader::new(read_stream);
+
     loop {
         let reply = message::RawNetworkMessage::consensus_decode(&mut stream_reader).unwrap();
         match reply.payload {
             message::NetworkMessage::Version(_) => {
-                println!("Received version message: {:?}", reply.payload);
+                println!("Received version message from: {:?}", address);
 
                 let second_message = message::RawNetworkMessage {
                     magic: constants::Network::Testnet.magic(),
@@ -52,29 +55,27 @@ let tx_message = message::RawNetworkMessage {
                 };
 
                 let _ = stream.write_all(encode::serialize(&second_message).as_slice());
-                println!("Sent verack message");
+                //println!("Sent verack message");
             }
-            message::NetworkMessage::Verack => {
-                println!("Received verack message: {:?}", reply.payload);
-                
+            message::NetworkMessage::Verack => {                
                 let _ = stream.write_all(encode::serialize(&inv_message).as_slice());
-                println!("Sent inv message {:?}", &inv_message);
-                
+                println!("Sent inv message to {:?}", address);                
             }
             message::NetworkMessage::GetData(_) => {
-                println!("Received GetData message: {:?}", reply.payload);            
-               
                 let txidreply = txid;
                 let mut txvecreply = Vec::new();
                 txvecreply.push(txidreply);
 
                 if reply.payload == message::NetworkMessage::GetData(txvecreply) {
+                    println!("Received GetData message: {:?}", reply.payload); 
                     stream.write_all(encode::serialize(&tx_message).as_slice())?;
-                    println!("broadcast TX {:?}", &tx_message);
+                    println!("TX broadcast to {:?}", address);
+                    process::exit(1);
                 }
+                
             } 
             message::NetworkMessage::Ping(nonce) => {
-                println!("Received ping message: {:?}", reply.payload);
+                //println!("Received ping message: {:?}", reply.payload);
 
                 let pong_message = message::RawNetworkMessage {
                     magic: constants::Network::Testnet.magic(),
@@ -82,20 +83,30 @@ let tx_message = message::RawNetworkMessage {
                 };
 
                 let _ = stream.write_all(encode::serialize(&pong_message).as_slice());
-                println!("Sent pong message {:?}", &pong_message);
+                //println!("Sent pong message {:?}", &pong_message);
 
             } 
             _ => {
                 println!("Received unknown message: {:?}", reply.payload);
                 
             }
+            
         }
-        
-    }  
-} else {
-    eprintln!("Failed to open connection");
-    process::exit(1);
-}
+    }
+    
+    } else {
+    eprintln!("Failed to open connection, trying again...");
+
+    let dns = dns_seed();
+    let seed: Vec<_> = dns
+    .choose_multiple(&mut rand::thread_rng(), 1)
+    .collect();
+    let rngseed = *seed[0];
+    let address = rngseed;
+
+    sendtx(address, tx)?;
+    Ok(())
+    }
 }
 
 fn build_version_message(address: SocketAddr) -> message::NetworkMessage {
