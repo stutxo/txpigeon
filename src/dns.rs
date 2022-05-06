@@ -1,5 +1,5 @@
 use log::{info, trace};
-use std::net::{SocketAddr, ToSocketAddrs, SocketAddrV4, Ipv4Addr};
+use std::net::{SocketAddr, ToSocketAddrs};
 
 
 const TEST_SEEDER: [&str; 4] = [
