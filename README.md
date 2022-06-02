@@ -1,3 +1,5 @@
+# TXpigeon
+
 connects to a random node from a bitcoin dns seed and broadcasts a transaction
 
 setup for testnet only, conects to these seeds - 
